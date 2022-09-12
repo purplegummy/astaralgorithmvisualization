@@ -1,5 +1,5 @@
 import {useState, useEffect} from 'react';
-import {Node} from './components/Node';
+import {Node, NodeProps} from './components/Node';
 
 function App() {
   
@@ -9,11 +9,15 @@ function App() {
     wall: boolean,
     x: number,
     y: number,
+    closed: boolean,
+    visited: boolean,
     width: number,
     f_score: number,
     g_score: number,
+    isPath: boolean,
     
   }
+  
   const [mode, setMode] = useState('walls');
   const [nodes, setNodes] = useState([
     [{
@@ -23,18 +27,25 @@ function App() {
       x: 0,
       y: 0,
       width: 0,
-      f_score: Infinity,
-      g_score: Infinity,
+      closed: false,
+      visited: false,
+      f_score: 1,
+      g_score: 0,
+      isPath: false,
 
 }]
   ]);
+  const [found, setFound] = useState(false);
   const ROWS = 30;
   const COLS = 40;
   const width = 20;
-  
+
   // creates grid of size ROWS x COLS and returns the grid
   const initializeGrid = () => {
-    const grid = [];
+    if (found) {
+      setFound(false);
+    }
+    const grid: Node[][] = [];
     for (let i = 0; i <ROWS; i++){ 
       const temp = [];
       for (let j = 0; j < COLS; j++){
@@ -45,14 +56,25 @@ function App() {
           wall: false,
           x: j,
           y: i,
+          visited: false,
+          closed: false,
           f_score: Infinity,
           g_score: Infinity,
+          isPath: false,
         });
 
       }
       grid.push(temp);
     }
-    console.log(grid);
+    
+    grid.map((row: Node[]) => {
+      row.map((node: Node) => {
+        if (node.start){
+          node.f_score = h(node, grid[15][30]);
+          node.g_score = 0;
+        }
+
+      })})
     setNodes(grid);
   }
 
@@ -71,7 +93,7 @@ function App() {
         (row: Node[]) => row.map(
           (node: Node) => {
             if (node.end){
-              return;
+              node.start = false;
             }
             if (node.x === x && node.y === y && node.end === false){
               node.start = true;
@@ -86,7 +108,7 @@ function App() {
         (row: Node[]) => row.map(
           (node: Node) => {
             if (node.start){
-              return;
+              node.end = false;
             }
             if (node.x === x && node.y === y && node.start === false){
               node.end = true;
@@ -108,50 +130,131 @@ function App() {
       )
     }
     
-    console.log(newGrid);
+    
     setNodes(newGrid);
   }
+  const reconstructPath = (cameFrom: Map<Node, Node>, current: Node) => {
+    // reconstruct path found by algorithm
+    const totalPath = [current];
+    while (cameFrom.has(current)){
+      if (cameFrom.get(current)){
+        current = cameFrom.get(current)!;
+        totalPath.unshift(current);
+      }
+      
+    }
+    const grid = nodes;
+    grid.map((row: Node[]) => row.map((node: Node, i: number) => {
+      if (totalPath.includes(node)){
+        node.isPath = true;
+        
+        
+      } else {
+        node.isPath = false;
+      }
+    
+    }))
 
-  // a star algoirthm that finds the shortest path from the start node to the end node
-  const aStar = (start: Node, end: Node, ) => {
+  }
+  
+  // a star algorithm that finds the shortest path from the start node to the end node
+  const aStar = (start: Node, end: Node ) => {
+    
+    //needc to check if algorithm was run already and if so, reset the grid
+    if (found) {
+      initializeGrid();
+      setFound(false);
+    }
     const newGrid = [...nodes];
-    // need to not hard code later
-    const startNode = newGrid[15][10];
-    const endNode = newGrid[15][30];
     const openSet = [start];
-    const closedSet = [];
-    const cameFrom = [];
-    const gScore = [];
+    let cameFrom = new Map<Node,Node>(); 
     const fScore = [];
     start.f_score = h(start, end);
     fScore.push(start);
     
-
+    let count = 1;
     while (openSet.length > 0) {
+      
       // find node in open set with lowest fSCore
       const current = findLowestFScore(openSet);
+     
       if (current === end) {
-        return; // path found --> need to reconstruct path
+        console.log("path found")
+        setFound(true);
+        reconstructPath(cameFrom, current);
+        return; // path found 
 
       }
-      
+      openSet.splice(openSet.indexOf(current), 1);
       const neighbors = getNeighbors(current, newGrid);
       for (let i = 0; i < neighbors.length; i++) {
           const tgScore = current.g_score + 1;
           const neighbor = neighbors[i];
-          if (tgScore < neighbor.g_score) {
+          if (tgScore < neighbor.g_score) { 
+            cameFrom.set(neighbor, current);
+            neighbor.g_score = tgScore;
+            neighbor.f_score = neighbor.g_score + h(neighbor, end);
             
+            if (!openSet.find(node => node === neighbor)) { // if neighbor is not in open set, add it
+              openSet.push(neighbor);
+              neighbor.visited = true;
+            }
+
           }
 
+
       }
+
+      
+      if (current !== start){
+        current.closed = true;
+        current.visited = false;
+        const time = 500;
+        setTimeout(() => {
+          setNodes(newGrid)
+        },time)
+        count++;
+      }
+      
+      
+
+
     }
+    console.log("failed")
+    return "Failed: no path found";
   }
   const getNeighbors = (current: Node, grid: Node[][]) => {
     const neighbors: Node[] = [];
-   
-    return neighbors;
 
-  }
+    for (let i = 0; i < ROWS; i++) {
+      for (let j = 0; j < COLS; j++) {
+        if (grid[i][j].wall) {
+          continue;
+        }
+        if (i === current.y && j === current.x) {
+          continue;
+        }
+        if (i === current.y && j === current.x + 1 && current.x + 1 < COLS) {
+          neighbors.push(grid[i][j]);
+        }
+        if (i === current.y && j === current.x - 1 && current.x - 1 >= 0) {
+          neighbors.push(grid[i][j]);
+        }
+        if (j === current.x && i === current.y - 1 && current.y - 1 >=0) {
+          neighbors.push(grid[i][j]);
+        }
+        if (j === current.x && i === current.y + 1 && current.y + 1 < ROWS) {
+          neighbors.push(grid[i][j]);
+        }
+        }
+
+      }
+      return neighbors;
+    }
+    
+
+
+  
   const h = (current: Node, end: Node) => {
     return Math.abs(end.x - current.x) + Math.abs(end.y - current.y);
   }
@@ -171,6 +274,36 @@ function App() {
     changeNode(x,y);
  
   }
+  
+  const getStart = () => {
+    let vals = [10,15];
+    nodes.map((row: Node[]) => row.map((node: Node) => {
+        console.log(node.start);
+        if (node.start){
+          vals = [node.x, node.y];
+        } 
+      })
+
+    )
+   
+    return vals;
+  }
+
+  const getEnd = () => {
+    let vals = [10,15];
+    nodes.map((row: Node[]) => row.map((node: Node) => {
+
+        if (node.end){
+          
+          vals = [node.x,node.y];
+        }
+      })
+
+    )
+    return vals;
+  
+  }
+
   return (<div
   style={{
     margin: 'auto',
@@ -187,7 +320,7 @@ function App() {
       gap: '25px',
       marginBottom: '50px',
     }}>
-      <button>Start A* Algorithm</button>
+      <button onClick={() => aStar(nodes[getStart()[1]][getStart()[0]], nodes[getEnd()[1]][getEnd()[0]])}>Start A* Algorithm</button>
       <button onClick={() => setMode('start')}>Change Start</button>
       <button onClick={() => setMode('end')}>Change End</button>
       <button onClick={() => setMode('walls')}>Add Walls</button>
@@ -195,7 +328,7 @@ function App() {
     </div>
   
     {
-  // iterate through 2d array of nodes, then create a row of nodes with associated props
+  // iterate through 2d array of nodes, then create a row of nodes with props
   nodes.map((row: Node[], i: number) => {
     return (
 
@@ -208,7 +341,7 @@ function App() {
         row.map((node: Node, j: number) => 
           {
               return (
-                  <Node key={`${i}-${j}`} {...node} onDrag={handleDrag} mode={mode} />
+                  <Node key={`${i}-${j}`} {...node} onDrag={handleDrag} />
               
               )})}
       </div>
