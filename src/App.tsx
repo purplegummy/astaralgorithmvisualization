@@ -169,6 +169,7 @@ function App() {
     }))
 
   }
+  // from : https://stackoverflow.com/questions/951021/what-is-the-javascript-version-of-sleep
   const sleep = (mill: number) => {
     return new Promise(resolve => {
       const timer = setTimeout(resolve, mill)
@@ -178,10 +179,11 @@ function App() {
   }
 
   // a star algorithm that finds the shortest path from the start node to the end node
+ // Psuedo code from https://en.wikipedia.org/wiki/A*_search_algorithm
   const aStar = async (start: Node, end: Node ) => {
     setRunning(true);
     setMode('');
-    //needc to check if algorithm was run already and if so, reset the grid
+    //need to check if algorithm was run already and if so, reset the grid
     if (found) {
       initializeGrid();
       setFound(false);
@@ -203,7 +205,7 @@ function App() {
     start.f_score = h(start, end);
     fScore.push(start);
     
-
+    
     while (openSet.length > 0) {
       await sleep(1);
       setNodes([...newGrid]);
