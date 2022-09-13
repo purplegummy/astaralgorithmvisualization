@@ -1,5 +1,5 @@
 import {useState, useEffect} from 'react';
-import {Node, NodeProps} from './components/Node';
+import {Node} from './components/Node';
 
 function App() {
   
@@ -17,7 +17,8 @@ function App() {
     isPath: boolean,
     
   }
-  
+  const [visited, setVisited] = useState<Node[]>([]);
+  const [running, setRunning] = useState(false);
   const [mode, setMode] = useState('walls');
   const [nodes, setNodes] = useState([
     [{
@@ -36,7 +37,7 @@ function App() {
 }]
   ]);
   const [found, setFound] = useState(false);
-  const ROWS = 30;
+  const ROWS = 40;
   const COLS = 40;
   const width = 20;
 
@@ -87,22 +88,30 @@ function App() {
   // changes the current start node to the node at the passed in x and y coordinates
   const changeNode = (x:number, y:number) => {
     const newGrid = [...nodes];
+  
     // need to fix bug where start or end node disappears when you click on opposite node
     if (mode === 'start'){  
+
       newGrid.map(
         (row: Node[]) => row.map(
           (node: Node) => {
             if (node.end){
               node.start = false;
+            } else if (node.start){
+              node.start = false;
+              node.f_score = Infinity;
+              node.g_score = Infinity;
             }
             if (node.x === x && node.y === y && node.end === false){
               node.start = true;
             } else {
               node.start = false;
             }
+           
           }
         )
       )
+      console.log(newGrid);
     } else if (mode === 'end'){
       newGrid.map(
         (row: Node[]) => row.map(
@@ -118,7 +127,7 @@ function App() {
           }
         )
       )
-    } else {
+    } else if (mode === 'walls'){
       newGrid.map(
         (row: Node[]) => row.map(
           (node: Node) => {
@@ -131,9 +140,10 @@ function App() {
     }
     
     
-    setNodes(newGrid);
+    setNodes([...newGrid]);
   }
-  const reconstructPath = (cameFrom: Map<Node, Node>, current: Node) => {
+  
+  const reconstructPath =(cameFrom: Map<Node, Node>, current: Node) => {
     // reconstruct path found by algorithm
     const totalPath = [current];
     while (cameFrom.has(current)){
@@ -144,10 +154,12 @@ function App() {
       
     }
     const grid = nodes;
-    grid.map((row: Node[]) => row.map((node: Node, i: number) => {
+    grid.map((row: Node[]) => row.map(async (node: Node, i: number) => {
+     
       if (totalPath.includes(node)){
-        node.isPath = true;
         
+        node.isPath = true;
+      
         
       } else {
         node.isPath = false;
@@ -156,37 +168,60 @@ function App() {
     }))
 
   }
-  
+  const sleep = (mill: number) => {
+    return new Promise(resolve => {
+      const timer = setTimeout(resolve, mill)
+      return () => clearTimeout(timer);
+      
+    })
+  }
+
   // a star algorithm that finds the shortest path from the start node to the end node
-  const aStar = (start: Node, end: Node ) => {
-    
+  const aStar = async (start: Node, end: Node ) => {
+    setRunning(true);
+    setMode('');
     //needc to check if algorithm was run already and if so, reset the grid
     if (found) {
       initializeGrid();
       setFound(false);
     }
+    nodes.map((row: Node[]) => {
+      row.map((node: Node) => {
+        if (node.start){
+          node.f_score = h(node, nodes[getEnd()[1]][getEnd()[0]]);
+          node.g_score = 0;
+        }
+
+      })})
+    //setNodes(nodes);
     const newGrid = [...nodes];
+    
     const openSet = [start];
     let cameFrom = new Map<Node,Node>(); 
     const fScore = [];
     start.f_score = h(start, end);
     fScore.push(start);
     
-    let count = 1;
+
     while (openSet.length > 0) {
-      
+      await sleep(10);
+      setNodes([...newGrid]);
       // find node in open set with lowest fSCore
       const current = findLowestFScore(openSet);
      
       if (current === end) {
         console.log("path found")
+        
         setFound(true);
         reconstructPath(cameFrom, current);
+        setRunning(false);
         return; // path found 
 
       }
       openSet.splice(openSet.indexOf(current), 1);
       const neighbors = getNeighbors(current, newGrid);
+      
+      
       for (let i = 0; i < neighbors.length; i++) {
           const tgScore = current.g_score + 1;
           const neighbor = neighbors[i];
@@ -198,6 +233,9 @@ function App() {
             if (!openSet.find(node => node === neighbor)) { // if neighbor is not in open set, add it
               openSet.push(neighbor);
               neighbor.visited = true;
+    
+            
+          
             }
 
           }
@@ -207,20 +245,18 @@ function App() {
 
       
       if (current !== start){
-        current.closed = true;
         current.visited = false;
-        const time = 500;
-        setTimeout(() => {
-          setNodes(newGrid)
-        },time)
-        count++;
-      }
+        current.closed = true;
       
+      }
+
+    
       
 
 
     }
     console.log("failed")
+    setRunning(false);
     return "Failed: no path found";
   }
   const getNeighbors = (current: Node, grid: Node[][]) => {
@@ -304,6 +340,8 @@ function App() {
   
   }
 
+
+  
   return (<div
   style={{
     margin: 'auto',
@@ -320,11 +358,11 @@ function App() {
       gap: '25px',
       marginBottom: '50px',
     }}>
-      <button onClick={() => aStar(nodes[getStart()[1]][getStart()[0]], nodes[getEnd()[1]][getEnd()[0]])}>Start A* Algorithm</button>
-      <button onClick={() => setMode('start')}>Change Start</button>
-      <button onClick={() => setMode('end')}>Change End</button>
-      <button onClick={() => setMode('walls')}>Add Walls</button>
-      <button onClick={() => initializeGrid()}>Reset</button>
+      <button disabled={running || found} onClick={() => aStar(nodes[getStart()[1]][getStart()[0]], nodes[getEnd()[1]][getEnd()[0]])}>Start A* Algorithm</button>
+      <button disabled={running || found} onClick={() => setMode('start')}>Change Start</button>
+      <button disabled={running || found} onClick={() => setMode('end')}>Change End</button>
+      <button disabled={running || found} onClick={() => setMode('walls')}>Add Walls</button>
+      <button disabled={running} onClick={() => initializeGrid()}>Reset</button>
     </div>
   
     {
