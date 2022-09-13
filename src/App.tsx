@@ -143,7 +143,7 @@ function App() {
     
     setNodes([...newGrid]);
   }
-  
+  // Psuedo code from https://en.wikipedia.org/wiki/A*_search_algorithm
   const reconstructPath =(cameFrom: Map<Node, Node>, current: Node) => {
     // reconstruct path found by algorithm
     const totalPath = [current];
