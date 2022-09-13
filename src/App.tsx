@@ -1,6 +1,6 @@
 import {useState, useEffect} from 'react';
 import {Node} from './components/Node';
-
+import { Button } from '@mui/material';
 function App() {
   
   type Node = {
@@ -17,7 +17,6 @@ function App() {
     isPath: boolean,
     
   }
-  const [visited, setVisited] = useState<Node[]>([]);
   const [running, setRunning] = useState(false);
   const [mode, setMode] = useState('walls');
   const [nodes, setNodes] = useState([
@@ -37,12 +36,14 @@ function App() {
 }]
   ]);
   const [found, setFound] = useState(false);
-  const ROWS = 40;
-  const COLS = 40;
+  const [ROWS,setROWS]= useState(34);
+  const [COLS,setCOLS]= useState(40);
+
   const width = 20;
 
   // creates grid of size ROWS x COLS and returns the grid
   const initializeGrid = () => {
+    setMode('walls');
     if (found) {
       setFound(false);
     }
@@ -193,7 +194,7 @@ function App() {
         }
 
       })})
-    //setNodes(nodes);
+
     const newGrid = [...nodes];
     
     const openSet = [start];
@@ -204,7 +205,7 @@ function App() {
     
 
     while (openSet.length > 0) {
-      await sleep(10);
+      await sleep(1);
       setNodes([...newGrid]);
       // find node in open set with lowest fSCore
       const current = findLowestFScore(openSet);
@@ -226,7 +227,7 @@ function App() {
           const tgScore = current.g_score + 1;
           const neighbor = neighbors[i];
           if (tgScore < neighbor.g_score) { 
-            cameFrom.set(neighbor, current);
+            cameFrom.set(neighbor, current);// if current path is better, update cameFrom
             neighbor.g_score = tgScore;
             neighbor.f_score = neighbor.g_score + h(neighbor, end);
             
@@ -350,21 +351,28 @@ function App() {
     justifyContent: 'center',
     alignItems: 'center',
     width: (COLS*30) + 'px',
+  
+   
+   
   }}
   >
+    <h1>{mode}</h1>
     <div style={{
       display: 'flex',
       flexDirection: 'row',
       gap: '25px',
       marginBottom: '50px',
     }}>
-      <button disabled={running || found} onClick={() => aStar(nodes[getStart()[1]][getStart()[0]], nodes[getEnd()[1]][getEnd()[0]])}>Start A* Algorithm</button>
-      <button disabled={running || found} onClick={() => setMode('start')}>Change Start</button>
-      <button disabled={running || found} onClick={() => setMode('end')}>Change End</button>
-      <button disabled={running || found} onClick={() => setMode('walls')}>Add Walls</button>
-      <button disabled={running} onClick={() => initializeGrid()}>Reset</button>
+      <Button disabled={running || found} onClick={() => aStar(nodes[getStart()[1]][getStart()[0]], nodes[getEnd()[1]][getEnd()[0]])} variant="contained">Start Visualization</Button>
+     
+      <Button disabled={running || found} onClick={() => setMode('start')}>Change Start</Button>
+      <Button disabled={running || found} onClick={() => setMode('end')}>Change End</Button>
+      <Button disabled={running || found} onClick={() => setMode('walls')}>Add Walls</Button>
+      <Button variant="outlined" color="error" disabled={running} onClick={() => initializeGrid()}>Reset</Button>
     </div>
-  
+   
+
+    
     {
   // iterate through 2d array of nodes, then create a row of nodes with props
   nodes.map((row: Node[], i: number) => {
